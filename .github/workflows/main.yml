@@ -30,10 +30,15 @@ jobs:
 
       - name: Save mirror state
         run: |
-          if [ -n "$(git status --porcelain .last_tweet_id .daily_state.json 2>/dev/null)" ]; then
-            git config user.name "mirror-bot"
-            git config user.email "actions@github.com"
-            git add .last_tweet_id .daily_state.json
-            git commit -m "chore: update mirror state [skip ci]"
-            git push
+          git config user.name "mirror-bot"
+          git config user.email "actions@github.com"
+          FILES=""
+          [ -f .last_tweet_id ] && FILES="$FILES .last_tweet_id"
+          [ -f .daily_state.json ] && FILES="$FILES .daily_state.json"
+          if [ -n "$FILES" ]; then
+            git add $FILES
+            if ! git diff --cached --quiet; then
+              git commit -m "chore: update mirror state [skip ci]"
+              git push
+            fi
           fi
