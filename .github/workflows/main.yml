@@ -2,7 +2,7 @@ name: Mirror X to Telegram
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # every 15 minutes
+    - cron: "*/600 * * * *"   # every 600 minutes
   workflow_dispatch: {}
 
 permissions:
