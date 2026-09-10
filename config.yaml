@@ -9,4 +9,4 @@ include_retweets: false
 # ── Safety ────────────────────────────────────────────────────────
 # When true, logs what WOULD be mirrored without actually posting to
 # Telegram. Flip to false once you've checked a few dry runs.
-dry_run: true
+dry_run: false
