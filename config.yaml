@@ -1,0 +1,12 @@
+# ── Mirror settings ───────────────────────────────────────────────
+# Your X (Twitter) username, without the @
+x_username: "YOUR_X_USERNAME_HERE"
+
+# Include your own replies and retweets, or only original posts?
+include_replies: false
+include_retweets: false
+
+# ── Safety ────────────────────────────────────────────────────────
+# When true, logs what WOULD be mirrored without actually posting to
+# Telegram. Flip to false once you've checked a few dry runs.
+dry_run: true
