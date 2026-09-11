@@ -1,19 +1,22 @@
 """
 Mirrors your own X posts to a Telegram channel.
 
-Checks for new posts since the last run (tracked in .last_tweet_id),
-mirrors text + photos (videos/GIFs get a text note + link back to the
-original post, since Telegram's Bot API can't easily re-upload X's video
-delivery format). Respects `dry_run` in config.yaml.
+Runs at 5 fixed times per day (see workflow schedule) and posts ONE
+tweet per run — the oldest not-yet-mirrored post. Since there are
+exactly 5 scheduled runs/day, this naturally caps mirroring at 5
+posts/day without needing separate counter logic.
+
+Tracks the last-mirrored tweet ID in .last_tweet_id so it never repeats
+and gradually works through any backlog, oldest first.
 
 Required env vars:
-  X_BEARER_TOKEN       (App-only bearer token from your X Developer app —
-                         read-only access is enough, no OAuth1 needed)
+  X_BEARER_TOKEN       (App-only bearer token from your X Developer app)
   TELEGRAM_BOT_TOKEN
-  TELEGRAM_CHAT_ID     (e.g. "@YourChannelName")
+  TELEGRAM_CHAT_ID     (e.g. "@DrAlexeyKulikov")
 """
 import os
 import sys
+
 import requests
 import yaml
 
@@ -75,7 +78,7 @@ def fetch_new_tweets(user_id, since_id, cfg):
     tweets = data.get("data", [])
     media_lookup = {m["media_key"]: m for m in data.get("includes", {}).get("media", [])}
 
-    # API returns newest-first; mirror oldest-first so channel order matches posting order
+    # API returns newest-first; we want oldest-first so backlog drains in order
     tweets.reverse()
     return tweets, media_lookup
 
@@ -118,12 +121,13 @@ def send_to_telegram(text, photo_urls, video_note, dry_run):
     data = resp.json()
     if not data.get("ok"):
         raise RuntimeError(f"Telegram API error: {data}")
-    print(f"Mirrored tweet -> Telegram OK")
+    print("Mirrored tweet -> Telegram OK")
 
 
 def main():
     cfg = load_config()
     username = cfg["x_username"]
+    dry_run = cfg.get("dry_run", True)
 
     user_id = get_user_id(username)
     since_id = get_last_id()
@@ -133,28 +137,30 @@ def main():
         print("No new posts to mirror.")
         return
 
-    highest_id = since_id
-    for tweet in tweets:
-        text = tweet["text"]
-        photo_urls = []
-        video_note = None
+    # Only mirror ONE tweet per run — the oldest not-yet-mirrored one.
+    # With 5 scheduled runs/day, this naturally caps mirroring at 5/day.
+    tweet = tweets[0]
+    remaining = len(tweets) - 1
+    if remaining:
+        print(f"{remaining} more backlog post(s) queued for future runs.")
 
-        for key in tweet.get("attachments", {}).get("media_keys", []):
-            media = media_lookup.get(key)
-            if not media:
-                continue
-            if media["type"] == "photo":
-                photo_urls.append(media["url"])
-            elif media["type"] in ("video", "animated_gif"):
-                video_note = f"[video/GIF — see original: https://x.com/{username}/status/{tweet['id']}]"
+    text = tweet["text"]
+    photo_urls = []
+    video_note = None
 
-        send_to_telegram(text, photo_urls, video_note, cfg.get("dry_run", True))
+    for key in tweet.get("attachments", {}).get("media_keys", []):
+        media = media_lookup.get(key)
+        if not media:
+            continue
+        if media["type"] == "photo":
+            photo_urls.append(media["url"])
+        elif media["type"] in ("video", "animated_gif"):
+            video_note = f"[video/GIF — see original: https://x.com/{username}/status/{tweet['id']}]"
 
-        if highest_id is None or int(tweet["id"]) > int(highest_id):
-            highest_id = tweet["id"]
+    send_to_telegram(text, photo_urls, video_note, dry_run)
 
-    if highest_id and not cfg.get("dry_run", True):
-        save_last_id(highest_id)
+    if not dry_run:
+        save_last_id(tweet["id"])
 
 
 if __name__ == "__main__":
