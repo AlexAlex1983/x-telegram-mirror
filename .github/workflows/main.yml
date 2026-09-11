@@ -2,7 +2,17 @@ name: Mirror X to Telegram
 
 on:
   schedule:
-    - cron: "*/600 * * * *"   # every 600 minutes
+    # Times below are UTC. Currently tuned for CEST (UTC+2, summer):
+    # 08:15 UTC = 10:15 CEST | 09:15 UTC = 11:15 CEST | 09:45 UTC = 11:45 CEST
+    # 13:45 UTC = 15:45 CEST | 14:45 UTC = 16:45 CEST
+    # NOTE: when Central Europe switches back to CET (UTC+1) in autumn,
+    # shift each of these forward by 1 hour to keep hitting the same local
+    # time. GitHub Actions cron does not auto-adjust for daylight saving.
+    - cron: "15 8 * * *"
+    - cron: "15 9 * * *"
+    - cron: "45 9 * * *"
+    - cron: "45 13 * * *"
+    - cron: "45 14 * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -21,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Mirror new posts
+      - name: Mirror new post
         env:
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -32,11 +42,8 @@ jobs:
         run: |
           git config user.name "mirror-bot"
           git config user.email "actions@github.com"
-          FILES=""
-          [ -f .last_tweet_id ] && FILES="$FILES .last_tweet_id"
-          [ -f .daily_state.json ] && FILES="$FILES .daily_state.json"
-          if [ -n "$FILES" ]; then
-            git add $FILES
+          if [ -f .last_tweet_id ]; then
+            git add .last_tweet_id
             if ! git diff --cached --quiet; then
               git commit -m "chore: update mirror state [skip ci]"
               git push
