@@ -6,6 +6,10 @@ x_username: "KulikovUNIATF"
 include_replies: false
 include_retweets: false
 
+# NOTE: the daily cap is now handled by the schedule itself (5 fixed
+# times/day in .github/workflows/mirror.yml, one post mirrored per run) —
+# no separate max_posts_per_day setting needed anymore.
+
 # ── Safety ────────────────────────────────────────────────────────
 # When true, logs what WOULD be mirrored without actually posting to
 # Telegram. Flip to false once you've checked a few dry runs.
